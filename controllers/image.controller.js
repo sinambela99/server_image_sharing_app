@@ -1,55 +1,45 @@
-const cloudinary = require('cloudinary').v2;
-const { Image } = require("../models");// Impor model Image
-
-// Konfigurasi Cloudinary
-cloudinary.config({
-  cloud_name: 'dv9rlshr4',
-  api_key: '621611323768164',
-  api_secret: 'vy0yVyRRgQUt-pTIaT4wEUx6wqY',
-});
-
-
+const { Image } = require("../models");
 
 class ImageController {
-
-    
-    static async getAllImage(req, res, next) {
-        try {
-          const result = await Stock.findAll({ order: [["id", "ASC"]] });
-          res.status(200).json({ data: result });
-        } catch (err) {
-          next(err);
-        }
-      }
-
-  // READ: Get an image by ID
-  static async getImageById(req, res, next) {
+  // ...
+  static async getAllImage(req, res, next) {
     try {
-      const { id } = req.params;
-      const image = await Image.findByPk(id);
-
-      if (!image) {
-        return res.status(404).json({ message: 'Image not found' });
-      }
-
-      res.status(200).json({ data: image });
-    } catch (error) {
-      next(error);
+      const result = await Image.findAll({ order: [["id", "ASC"]] });
+      res.status(200).json({ data: result });
+    } catch (err) {
+      next(err);
     }
   }
 
-  // CREATE: Upload a new image to Cloudinary and save it to the database
+// READ: Get an image by ID
+static async getImageById(req, res, next) {
+try {
+  const { id } = req.params;
+  const image = await Image.findByPk(id);
+
+  if (!image) {
+    return res.status(404).json({ message: 'Image not found' });
+  }
+
+  res.status(200).json({ data: image });
+} catch (error) {
+  next(error);
+}
+}
+  // CREATE: Upload a new image to the server and save its information to the database
   static async createImage(req, res, next) {
     try {
-      const { title, photo } = req.body;
+      const { title } = req.body;
+      const photo = req.file;// Ambil file gambar dari req.file
 
-      // Upload foto ke Cloudinary
-      const cloudinaryResponse = await cloudinary.uploader.upload(photo);
-
+      if (!photo) {
+        return res.status(400).json({ message: 'No image uploaded' });
+      }
+      
       // Simpan informasi gambar ke database
       const newImage = await Image.create({
         title,
-        photo: cloudinaryResponse.secure_url, // URL gambar yang diunggah di Cloudinary
+        photo: `http://localhost:${process.env.PORT}/uploads/${photo}`, // Nama file yang diunggah
       });
 
       res.status(201).json({ message: 'Image created successfully', data: newImage });
@@ -69,15 +59,12 @@ class ImageController {
         return res.status(404).json({ message: 'Image not found' });
       }
 
-      // Upload foto baru ke Cloudinary jika ada perubahan gambar
+      // Jika ada file gambar baru, hapus file lama dan ganti dengan yang baru
       if (photo) {
-        // Hapus gambar lama dari Cloudinary
-        const public_id = image.photo.split('/').pop().split('.')[0];
-        await cloudinary.uploader.destroy(public_id);
+        const imagePath = path.join('uploads', image.photo);
+        fs.unlinkSync(imagePath); // Hapus file gambar lama dari server
 
-        // Upload gambar baru ke Cloudinary
-        const cloudinaryResponse = await cloudinary.uploader.upload(photo);
-        image.photo = cloudinaryResponse.secure_url;
+        image.photo = photo.filename; // Gunakan nama file baru
       }
 
       // Update informasi gambar di database
@@ -91,7 +78,7 @@ class ImageController {
     }
   }
 
-  // DELETE: Delete an image by ID from Cloudinary and the database
+  // DELETE: Delete an image by ID from the server and the database
   static async deleteImageById(req, res, next) {
     try {
       const { id } = req.params;
@@ -101,9 +88,9 @@ class ImageController {
         return res.status(404).json({ message: 'Image not found' });
       }
 
-      // Hapus gambar dari Cloudinary
-      const public_id = image.photo.split('/').pop().split('.')[0];
-      await cloudinary.uploader.destroy(public_id);
+      // Hapus file gambar dari server
+      const imagePath = path.join('uploads', image.photo);
+      fs.unlinkSync(imagePath);
 
       // Hapus entri gambar dari database
       await image.destroy();

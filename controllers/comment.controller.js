@@ -4,7 +4,7 @@ class CommentController {
 
     static async getAllComment(req, res, next) {
         try {
-          const result = await Stock.findAll({ order: [["id", "ASC"]] });
+          const result = await Comment.findAll({ order: [["id", "ASC"]] });
           res.status(200).json({ data: result });
         } catch (err) {
           next(err);
@@ -31,11 +31,11 @@ class CommentController {
   static async createComment(req, res, next) {
     try {
       const { text } = req.body;
-
+      console.log(req.body)
       const newComment = await Comment.create({
         text,
       });
-
+      
       res.status(201).json({ message: 'Comment created successfully', data: newComment });
     } catch (error) {
       next(error);
